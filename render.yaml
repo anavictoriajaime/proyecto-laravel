@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: proyecto-laravel
+    runtime: php
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader
+      npm install
+      npm run build
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+    startCommand: php artisan serve --host=0.0.0.0 --port=10000
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        value: https://proyecto-laravel-mqlf.onrender.com
+      - key: APP_KEY
+        value: base64:WujOUs9SLrmKX31fEZ0kQXZBnb9KpUH4wOWXTLClHGw=
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        value: dpg-d8pkdth194ac739dopr0-a.ohio-postgres.render.com
+      - key: DB_PORT
+        value: 5432
+      - key: DB_DATABASE
+        value: proyecto_db_5t68
+      - key: DB_USERNAME
+        value: proyecto_db_5t68_user
+      - key: DB_PASSWORD
+        value: bAvYGc8aSpSIKJ5cRHa5vXqFomrkjT6F
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: database
