@@ -9,7 +9,6 @@ use App\Http\Requests\UpdateClienteRequest;
 use App\Exports\ClientesExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage; // ✅ IMPORTANTE: Agrega esto
 
 class ClienteController extends Controller
 {
@@ -25,35 +24,37 @@ class ClienteController extends Controller
     }
 
     public function store(StoreClienteRequest $request)
-    {
-        $validatedData = $request->validated();
+{
+    $validatedData = $request->validated();
+    
+    // Verificar si hay imagen
+    if ($request->hasFile('imagen') && $request->file('imagen')->isValid()) {
+        $imagen = $request->file('imagen');
+        $nombreImagen = time() . '_' . $imagen->getClientOriginalName();
         
-        // ✅ GUARDAR IMAGEN CORRECTAMENTE
-        if ($request->hasFile('imagen') && $request->file('imagen')->isValid()) {
-            $imagen = $request->file('imagen');
-            $nombreImagen = time() . '_' . $imagen->getClientOriginalName();
-            
-            // Guardar en storage/app/public/img/clientes
-            $path = $imagen->storeAs('public/img/clientes', $nombreImagen);
-            
-            // Guardar la ruta para acceder desde la web
-            $validatedData['imagen'] = '/storage/img/clientes/' . $nombreImagen;
-        }
+        // Usar storage en lugar de public
+        $imagen->storeAs('public/img/clientes', $nombreImagen);
+        $validatedData['imagen'] = '/storage/img/clientes/' . $nombreImagen;
         
-        Cliente::create([
-            'nombre' => $validatedData['nombre'],
-            'documento' => $validatedData['documento'],
-            'direccion' => $validatedData['direccion'],
-            'telefono' => $validatedData['telefono'],
-            'email' => $validatedData['email'],
-            'imagen' => $validatedData['imagen'] ?? null,
-            'estado' => '1',
-            'registradopor' => auth()->id(),
-        ]);
-
-        return redirect()->route('clientes.index')
-            ->with('success', 'Cliente creado correctamente');
+        // Si quieres usar public_path:
+        // $imagen->move(public_path('img/clientes'), $nombreImagen);
+        // $validatedData['imagen'] = 'img/clientes/' . $nombreImagen;
     }
+    
+    Cliente::create([
+        'nombre' => $validatedData['nombre'],
+        'documento' => $validatedData['documento'],
+        'direccion' => $validatedData['direccion'],
+        'telefono' => $validatedData['telefono'],
+        'email' => $validatedData['email'],
+        'imagen' => $validatedData['imagen'] ?? null,
+        'estado' => '1',
+        'registradopor' => auth()->id(),
+    ]);
+
+    return redirect()->route('clientes.index')
+        ->with('success', 'Cliente creado correctamente');
+}
 
     public function show($id)
     {
@@ -73,20 +74,14 @@ class ClienteController extends Controller
         $validatedData = $request->validated();
         
         if ($request->hasFile('imagen')) {
-            // ✅ ELIMINAR IMAGEN VIEJA USANDO STORAGE
-            if ($cliente->imagen) {
-                // Obtener la ruta del storage desde la URL
-                $oldPath = str_replace('/storage/', 'public/', $cliente->imagen);
-                if (Storage::exists($oldPath)) {
-                    Storage::delete($oldPath);
-                }
+            if ($cliente->imagen && file_exists(public_path($cliente->imagen))) {
+                unlink(public_path($cliente->imagen));
             }
             
-            // ✅ GUARDAR NUEVA IMAGEN
             $imagen = $request->file('imagen');
             $nombreImagen = time() . '_' . $imagen->getClientOriginalName();
-            $imagen->storeAs('public/img/clientes', $nombreImagen);
-            $validatedData['imagen'] = '/storage/img/clientes/' . $nombreImagen;
+            $imagen->move(public_path('img/clientes'), $nombreImagen);
+            $validatedData['imagen'] = 'img/clientes/' . $nombreImagen;
         }
         
         $cliente->update($validatedData);
@@ -114,12 +109,8 @@ class ClienteController extends Controller
                 ->with('error', 'No se puede eliminar el cliente porque tiene ' . $cliente->pedidos()->count() . ' pedido(s) asociado(s).');
         }
         
-        // ✅ ELIMINAR IMAGEN USANDO STORAGE
-        if ($cliente->imagen) {
-            $oldPath = str_replace('/storage/', 'public/', $cliente->imagen);
-            if (Storage::exists($oldPath)) {
-                Storage::delete($oldPath);
-            }
+        if ($cliente->imagen && file_exists(public_path($cliente->imagen))) {
+            unlink(public_path($cliente->imagen));
         }
         
         $cliente->delete();
